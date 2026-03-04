@@ -13,23 +13,56 @@ Mercado Financeiro — Análise de Ações da B3 (Bolsa Brasileira)
 ## 📋 Kanban
 Acompanhe o progresso: https://app.clickup.com/90133094845/chat/r/7-90133094845-8
 
-## 🗂️ Fonte de Dados
-- **Dataset principal:** https://www.kaggle.com/datasets/renanfioramonte/ibovespa-index
-- **Dados complementares:** https://dados.cvm.gov.br
 
 📊 Perguntas de Negócio
 
-Considerando os dados históricos de ações da B3 e o índice Ibovespa como referência de mercado, o projeto busca responder às seguintes questões:
+Aqui estão os links confirmados para cada pergunta:
+Q1 — Selic vs retorno ações financeiras
 
-Qual setor teve maior crescimento acumulado no período analisado?
+Selic diária: https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=csv
+Ações B3: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
 
-Qual ação apresentou maior volatilidade no período?
+Q2 — Empresas resilientes na COVID-2020
 
-Qual foi o trimestre mais volátil?
+DFP receita/lucro: https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/
+Cadastro empresas: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
 
-Quais ações são menos negociadas?
+Q3 — Volume vs volatilidade por setor
 
-Qual setor é mais resiliente em crises?
+Ações + volume: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
+Setor das empresas: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
+
+Q4 — Câmbio vs exportadoras
+
+Câmbio USD/BRL: https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=csv
+Setor das empresas: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
+
+Q5 — Risco-retorno por segmento
+
+Segmento listagem: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
+Preços históricos: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
+
+Q6 — Volume por setor
+
+Volume diário: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
+Setor: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
+
+Q7 — Dividendos por setor
+
+Dividendos: https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/
+Preços: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
+
+Q8 — IPCA vs setor consumo
+
+IPCA mensal: https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=csv
+Ações consumo: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
+
+Q9 — Liquidez vs tamanho empresa
+
+Volume ações: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
+Total ações emitidas: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
+
+
 
 ## 🗂️ Estrutura do Repositório
 | Pasta | Conteúdo |
