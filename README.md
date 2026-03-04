@@ -17,6 +17,20 @@ Acompanhe o progresso: https://app.clickup.com/90133094845/chat/r/7-90133094845-
 - **Dataset principal:** https://www.kaggle.com/datasets/renanfioramonte/ibovespa-index
 - **Dados complementares:** https://dados.cvm.gov.br
 
+📊 Perguntas de Negócio
+
+Considerando os dados históricos de ações da B3 e o índice Ibovespa como referência de mercado, o projeto busca responder às seguintes questões:
+
+Qual setor teve maior crescimento acumulado no período analisado?
+
+Qual ação apresentou maior volatilidade no período?
+
+Qual foi o trimestre mais volátil?
+
+Quais ações são menos negociadas?
+
+Qual setor é mais resiliente em crises?
+
 ## 🗂️ Estrutura do Repositório
 | Pasta | Conteúdo |
 |-------|----------|
