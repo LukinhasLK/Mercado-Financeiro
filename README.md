@@ -1,35 +1,199 @@
-# 📊 Análise do Mercado Financeiro Brasileiro — B3 × Macro × CVM
+# Análise do Mercado Financeiro Brasileiro — B3 × Macro × CVM
 
 > Perguntas analíticas que cruzam dados macroeconômicos do Banco Central, demonstrações financeiras da CVM e séries históricas de preços da B3.
 
 ---
 
-## 👥 Grupo
+## Grupo
 
 | Nome | Responsabilidade |
 |------|-----------------|
 | Lucas Rodrigues Alves | Líder — Arquiteto de Dados (DDL, DER, constraints) |
-| Lucas Oliveira Martins | Engenheiro de ETL (extração, transformação, carga) |
-| Ailton Santos Dantas | Analista de Dados (Views, índices, SPs analíticas) |
-| Luigi Sapucaia de Lima | Desenvolvedor SQL (Functions, Triggers) |
+| Lucas Oliveira Martins | Engenheiro de ETL (extração, transformação, carga, SPs analíticas) |
+| Ailton Santos Dantas | Analista de Dados (Views, índices, functions) |
+| Luigi Sapucaia de Lima | Desenvolvedor SQL (Triggers, DCL roles) |
 | Rubens Manoel | Segurança & Docs (DCL roles, dicionário, manual) |
 
 ---
 
-## 🗂️ Fontes de Dados
+## Como Executar o Projeto (passo a passo)
 
-| Fonte | Dado | Link |
-|-------|------|------|
+### Pré-requisitos
+
+- SQL Server 2019+ com SSMS instalado
+- Acesso à internet para baixar os CSVs
+- Permissão `BULKADMIN` no servidor SQL (necessária para BULK INSERT)
+
+---
+
+### PASSO 1 — Criar a estrutura do banco (DDL)
+
+Abra o SSMS, conecte ao servidor e execute:
+
+```sql
+-- Arquivo: 01_ddl/01_ddl_mercado_financeiro.sql
+-- Cria o banco MercadoFinanceiro, todas as tabelas, índices e dados iniciais
+```
+
+---
+
+### PASSO 2 — Baixar os arquivos CSV
+
+Crie a pasta `C:\dados\mercado_financeiro\` no servidor SQL e baixe os 5 arquivos:
+
+| Arquivo esperado | Fonte | Como baixar |
+|---|---|---|
+| `cotacoes.csv` | Kaggle | Instale a CLI: `pip install kaggle` → `kaggle datasets download -d felsal/ibovespa-stocks` |
+| `selic.csv` | BCB SGS série 11 | Acesse: `https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=csv` |
+| `ipca.csv` | BCB SGS série 433 | Acesse: `https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=csv` |
+| `cambio.csv` | BCB SGS série 1 | Acesse: `https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=csv` |
+| `cad_empresas.csv` | CVM | Acesse: `https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv` |
+
+**Colunas esperadas:**
+
+- `cotacoes.csv`: `ticker, date, open, close, high, low, volume`
+- `selic.csv`, `ipca.csv`, `cambio.csv`: `data;valor` (separador ponto-e-vírgula)
+- `cad_empresas.csv`: `CD_CVM;CNPJ_CIA;DENOM_SOCIAL;DENOM_COMERC;SIT;SETOR_ATIV;...`
+
+---
+
+### PASSO 3 — Executar o ETL
+
+Abra o arquivo `02_etl/01_extract_staging.sql` no SSMS e ajuste o caminho dos arquivos CSV se necessário. Em seguida execute o pipeline:
+
+```sql
+USE MercadoFinanceiro;
+GO
+
+-- Executa as 3 etapas: extract → transform → load
+EXEC dbo.usp_etl_executar_pipeline;
+```
+
+Se o pipeline não existir ainda, execute as SPs individualmente na ordem:
+
+```sql
+EXEC dbo.usp_etl_01_extract  @base_path = 'C:\dados\mercado_financeiro\';
+EXEC dbo.usp_etl_02_transform;
+EXEC dbo.usp_etl_03_load;
+```
+
+---
+
+### PASSO 4 — Validar a carga (obrigatório — tirar print)
+
+```sql
+USE MercadoFinanceiro;
+GO
+
+-- Contagem total (alvo: 200.000+ registros)
+SELECT COUNT(*) AS total_registros FROM dbo.fato_cotacao;
+
+-- Verificação por ticker
+SELECT da.cd_ticker, COUNT(*) AS pregoes
+FROM dbo.fato_cotacao fc
+INNER JOIN dbo.dim_acao da ON da.id_acao = fc.id_acao
+GROUP BY da.cd_ticker
+ORDER BY pregoes DESC;
+
+-- Log de erros (deve estar vazio)
+SELECT TOP 20 * FROM dbo.log_erros_etl ORDER BY dt_erro DESC;
+```
+
+O script completo de validação está em: `03_dql/01_validacao_pos_etl.sql`
+
+---
+
+### PASSO 5 — Criar as Stored Procedures analíticas
+
+```sql
+-- SP1: Selic vs retorno das ações financeiras (Q1)
+-- Arquivo: 05_stored_procedures/usp_selic_vs_retorno_financeiras.sql
+
+-- SP2: Empresas resilientes na COVID-2020 (Q2)
+-- Arquivo: 05_stored_procedures/usp_empresas_resilientes_covid.sql
+-- ⚠️ Requer fn_retorno_acumulado (06_functions — Ailton)
+```
+
+Teste as SPs após criar:
+
+```sql
+EXEC dbo.usp_selic_vs_retorno_financeiras @dt_inicio = '2018-01-01', @dt_fim = '2023-12-31';
+EXEC dbo.usp_empresas_resilientes_covid;
+```
+
+---
+
+### PASSO 6 — Demais objetos (outros membros)
+
+| Pasta | Objeto | Responsável |
+|-------|--------|-------------|
+| `04_views/` | Views analíticas | Ailton |
+| `06_functions/` | `fn_retorno_acumulado` e outras | Ailton |
+| `07_triggers/` | Triggers de auditoria | Luigi |
+| `08_dcl/` | Roles e permissões | Luigi |
+| `09_documentacao/` | Dicionário de dados | Luigi / Rubens |
+
+---
+
+## Estrutura do Repositório
+
+```
+Mercado-Financeiro/
+├── README.md
+├── 01_ddl/
+│   └── 01_ddl_mercado_financeiro.sql      # Cria banco, tabelas, índices
+├── 02_etl/
+│   └── 01_extract_staging.sql             # Pipeline ETL (extract → transform → load)
+├── 03_dql/
+│   └── 01_validacao_pos_etl.sql           # Validações pós-carga + teste das SPs
+├── 04_views/                              # Views analíticas (Ailton)
+├── 05_stored_procedures/
+│   ├── usp_selic_vs_retorno_financeiras.sql  # Q1 — Selic vs Financeiras
+│   └── usp_empresas_resilientes_covid.sql    # Q2 — Resiliência COVID-2020
+├── 06_functions/                          # fn_retorno_acumulado (Ailton)
+├── 07_triggers/                           # Triggers (Luigi)
+├── 08_dcl/                                # Roles e permissões (Luigi)
+├── 09_documentacao/                       # Dicionário de dados
+└── 10_dados/                              # CSVs de exemplo
+```
+
+---
+
+## Fontes de Dados
+
+| Fonte | Dado | URL |
+|-------|------|-----|
 | Banco Central (BCB) | Selic diária | https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=csv |
 | Banco Central (BCB) | Câmbio USD/BRL | https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=csv |
 | Banco Central (BCB) | IPCA mensal | https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=csv |
 | CVM | Demonstrações Financeiras (DFP) | https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/ |
 | CVM | Cadastro de Empresas | https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/ |
-| B3 via Kaggle | Preços e Volume histórico (Ibovespa) | https://www.kaggle.com/datasets/felsal/ibovespa-stocks |
+| B3 via Kaggle | Preços e Volume histórico | https://www.kaggle.com/datasets/felsal/ibovespa-stocks |
 
 ---
 
-## 📊 Diagrama Entidade-Relacionamento
+## Perguntas Analíticas
+
+### Q1 — Selic vs. Retorno de Ações Financeiras
+**Pergunta:** Empresas do setor financeiro superam a Selic em janelas de alta de juros?
+**SP:** `dbo.usp_selic_vs_retorno_financeiras`
+
+### Q2 — Empresas Resilientes na COVID-2020
+**Pergunta:** Quais empresas e setores foram mais resilientes durante a crise de 2020?
+**SP:** `dbo.usp_empresas_resilientes_covid`
+
+### Q3 — Volume vs. Volatilidade por Setor
+**Pergunta:** Setores com maior volume médio têm menor volatilidade histórica?
+
+### Q4 — Câmbio vs. Exportadoras
+**Pergunta:** Exportadoras se valorizam consistentemente quando o dólar sobe?
+
+### Q5 — Risco-Retorno por Segmento de Listagem
+**Pergunta:** Novo Mercado oferece melhor Sharpe do que o Mercado Tradicional?
+
+---
+
+## Diagrama Entidade-Relacionamento
 
 ```mermaid
 erDiagram
@@ -206,32 +370,6 @@ erDiagram
         datetime dt_carga
     }
 
-    log_auditoria {
-        bigint id_log PK
-        varchar ds_tabela
-        varchar ds_operacao
-        varchar ds_usuario
-        datetime dt_operacao
-        varchar ds_dados_antes
-        varchar ds_dados_depois
-    }
-
-    log_erros_etl {
-        bigint id_erro PK
-        varchar ds_procedure
-        varchar ds_erro
-        varchar ds_dados
-        datetime dt_erro
-    }
-
-    parametros_sistema {
-        int id_parametro PK
-        varchar cd_parametro
-        varchar vl_parametro
-        varchar ds_descricao
-        datetime dt_atualizacao
-    }
-
     dim_setor             ||--o{ dim_subsetor          : "tem"
     dim_setor             ||--o{ dim_empresa           : "classifica"
     dim_subsetor          ||--o{ dim_empresa           : "classifica"
@@ -253,158 +391,3 @@ erDiagram
     dim_data              ||--o{ hist_preco_ajustado   : "data"
     dim_indicador_macro   ||--o{ fato_indicador_macro  : "mede"
 ```
-
----
-
-## ❓ Perguntas Analíticas
-
-### Q1 — Selic vs. Retorno de Ações Financeiras
-
-**Pergunta:** Empresas do setor financeiro superam a Selic em janelas de alta de juros ou apenas a replicam?
-
-**Hipótese:** Bancos e seguradoras tendem a ampliar margens durante ciclos de alta da Selic (spread bancário cresce), mas papéis de crescimento sofrem compressão de múltiplo. A pergunta separa quais subsetores financeiros têm beta positivo vs. negativo à taxa básica.
-
-**Dados necessários:**
-- Selic diária → `BCB SGS 11`: https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=csv
-- Preços históricos B3 → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-
----
-
-### Q2 — Empresas Resilientes na COVID-2020
-
-**Pergunta:** Quais empresas listadas na B3 apresentaram crescimento de receita e lucro durante a crise de 2020, e o que elas têm em comum?
-
-**Hipótese:** Empresas resilientes em 2020 concentram-se em tech, saúde, varejo digital e agro. O cruzamento com DFP permite calcular o CAGR 2019–2021 e identificar padrões de setor, estrutura de capital e governança que explicam a resiliência.
-
-**Dados necessários:**
-- DFP receita/lucro → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/
-- Cadastro de empresas → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
-
----
-
-### Q3 — Volume vs. Volatilidade por Setor
-
-**Pergunta:** Setores com maior volume médio de negociação têm menor volatilidade histórica de preços, ou o volume é movido justamente pelos eventos de alta volatilidade?
-
-**Hipótese:** A relação volume-volatilidade não é linear: setores de utilities têm volume moderado e baixa volatilidade, enquanto commodities têm alto volume E alta volatilidade.
-
-**Dados necessários:**
-- Preços e volume → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-- Setor das empresas → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
-
----
-
-### Q4 — Câmbio vs. Exportadoras
-
-**Pergunta:** Ações de exportadoras (agro, mineração, papel & celulose) se valorizam de forma consistente quando o dólar sobe acima de determinado threshold?
-
-**Hipótese:** Existe um ponto de inflexão do câmbio (por volta de R$ 5,50–6,00) a partir do qual a valorização cambial passa a gerar retorno anormal positivo nas exportadoras.
-
-**Dados necessários:**
-- Câmbio USD/BRL → `BCB SGS 1`: https://api.bcb.gov.br/dados/serie/bcdata.sgs.1/dados?formato=csv
-- Setor das empresas → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
-
----
-
-### Q5 — Risco-Retorno por Segmento de Listagem
-
-**Pergunta:** Empresas no Novo Mercado oferecem melhor relação risco-retorno (Sharpe) do que as do Mercado Tradicional ao longo de 5+ anos?
-
-**Hipótese:** A tese do "prêmio de governança" sugere que Novo Mercado = menor custo de capital = múltiplos maiores = menor volatilidade relativa.
-
-**Dados necessários:**
-- Segmento de listagem → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
-- Preços históricos → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-
----
-
-### Q6 — Concentração de Volume por Setor
-
-**Pergunta:** A concentração do volume financeiro diário na B3 em poucos setores e empresas aumentou nos últimos anos, e quais setores perderam participação relativa?
-
-**Hipótese:** Setor financeiro (ITUB, BBDC, BBAS) e commodities (VALE, PETR) dominam mais de 60% do volume.
-
-**Dados necessários:**
-- Volume diário → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-- Setor das empresas → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
-
----
-
-### Q7 — Dividendos por Setor
-
-**Pergunta:** Setores de energia elétrica e saneamento lideram yield de dividendos histórico, e o dividend yield prediz retorno total nos 12 meses seguintes?
-
-**Hipótese:** High-yield de dividendos é geralmente contracíclico: quando a Selic cai, ações de dividendos sobem por compressão de prêmio.
-
-**Dados necessários:**
-- Dividendos → `CVM DFP`: https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/
-- Preços históricos → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-
----
-
-### Q8 — IPCA vs. Setor de Consumo
-
-**Pergunta:** Surpresas de IPCA acima do teto da meta historicamente geram retorno negativo anormal nas ações de consumo discricionário no mês seguinte?
-
-**Hipótese:** Consumo discricionário sofre duplo impacto de inflação: margem comprimida por custos + queda de demanda real.
-
-**Dados necessários:**
-- IPCA mensal → `BCB SGS 433`: https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=csv
-- Ações de consumo → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-
----
-
-### Q9 — Liquidez vs. Tamanho de Empresa
-
-**Pergunta:** Existe uma relação não-linear entre o tamanho da empresa (total de ações emitidas × preço) e a liquidez diária?
-
-**Hipótese:** Large-caps têm alta liquidez institucional constante. Small-caps têm liquidez episódica. A faixa mid-cap é a mais sensível a ciclos de risk-on/off.
-
-**Dados necessários:**
-- Volume de ações → `Kaggle`: https://www.kaggle.com/datasets/felsal/ibovespa-stocks
-- Total de ações emitidas → `CVM`: https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/
-
----
-
-## 🔗 Correlações entre Perguntas
-
-| Pergunta | Conecta com |
-|----------|-------------|
-| Q1 | Q7, Q8 |
-| Q2 | Q5, Q7 |
-| Q3 | Q6, Q9 |
-| Q4 | Q1, Q8 |
-| Q5 | Q2, Q9 |
-| Q6 | Q3, Q7 |
-| Q7 | Q1, Q2 |
-| Q8 | Q1, Q4 |
-| Q9 | Q3, Q5, Q6 |
-
----
-
-## 🗃️ Estrutura do Repositório
-
-```
-📁 Mercado-Financeiro/
-├── 📄 README.md
-├── 📁 01_ddl/           # Scripts de criação das tabelas
-├── 📁 02_etl/           # Scripts de carga e transformação
-├── 📁 03_dql/           # Queries analíticas
-├── 📁 04_views/         # Views
-├── 📁 05_stored_procedures/  # Stored Procedures
-├── 📁 06_functions/     # Functions
-├── 📁 07_triggers/      # Triggers
-├── 📁 08_dcl/           # Roles e permissões
-├── 📁 09_documentacao/  # Dicionário de dados, DER
-└── 📁 10_dados/         # Dados de exemplo
-```
-
----
-
-## 🛠️ Como Executar
-
-1. Clone o repositório
-2. Abra o DBeaver e conecte no SQL Server
-3. Execute `01_ddl/01_ddl_mercado_financeiro.sql`
-4. Execute os scripts de ETL em `02_etl/`
-5. Verifique os dados com as queries em `03_dql/`
