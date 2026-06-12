@@ -154,7 +154,8 @@ Mercado-Financeiro/
 ├── 07_triggers/                           # Triggers (Luigi)
 ├── 08_dcl/                                # Roles e permissões (Luigi)
 ├── 09_documentacao/                       # Dicionário de dados
-└── 10_dados/                              # CSVs de exemplo
+├── 10_dados/                              # CSVs de exemplo (B3, BCB, CVM)
+└── 11_apresentacao/                       # Slides finais (PDF) e dashboard interativo (HTML)
 ```
 
 ---
@@ -391,3 +392,12 @@ erDiagram
     dim_data              ||--o{ hist_preco_ajustado   : "data"
     dim_indicador_macro   ||--o{ fato_indicador_macro  : "mede"
 ```
+
+---
+
+## Apresentação Final
+
+A pasta [`11_apresentacao/`](./11_apresentacao) contém os materiais finais entregues para a disciplina:
+
+- **`apresentacao_mercado_financeiro_b3.pdf`** — slides finais do projeto, com visão geral, modelagem dimensional (incluindo MER/DER), pipeline de ETL, objetos do banco (views, functions, triggers, stored procedures, roles) e os resultados reais das 5 perguntas analíticas (Q1–Q5).
+- **`dashboard_analise_b3.html`** — dashboard interativo (Chart.js) com gráficos dos dados reais de cotações da B3 por ticker. Para visualizar, basta abrir o arquivo diretamente no navegador.

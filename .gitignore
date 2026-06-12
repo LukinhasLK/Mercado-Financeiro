@@ -1,0 +1,7 @@
+# Editores / IDEs
+.vscode/
+.idea/
+
+# Arquivos temporários
+*.tmp
+*.bak
